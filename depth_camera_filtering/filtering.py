@@ -100,7 +100,7 @@ def filter_depth(
     clip_far_thresh: Optional[float] = None,
     set_black_value: Optional[float] = None,
     use_multiscale: bool = True,
-    recover_nonzero: bool = True;
+    recover_nonzero: bool = True,
     **kwargs,
 ):
     """
