@@ -79,6 +79,7 @@ def filter_depth_uint8(
     max_depth: float,
     clip_far_thresh: Optional[float] = None,
     set_black_value: Optional[float] = None,
+    **kwargs,
 ):
     """
     Uses filter_depth to filter a depth image with dtype np.uint8.
@@ -90,7 +91,7 @@ def filter_depth_uint8(
     assert np.issubdtype(depth_img.dtype, np.integer), "depth_img must be np.uint8"
     assert depth_img.ndim == 2, "depth_img must be 2D"
     depth_img = depth_img.astype(np.float32) / 255.0 * max_depth
-    filtered_depth_img = filter_depth(depth_img, clip_far_thresh, set_black_value)
+    filtered_depth_img = filter_depth(depth_img, clip_far_thresh, set_black_value, **kwargs)
     return (filtered_depth_img / max_depth * 255).astype(np.uint8)
 
 
@@ -98,6 +99,9 @@ def filter_depth(
     depth_img: np.ndarray,
     clip_far_thresh: Optional[float] = None,
     set_black_value: Optional[float] = None,
+    use_multiscale: bool = True,
+    recover_nonzero: bool = True;
+    **kwargs,
 ):
     """
     Filter depth image using a multiscale dilation.
@@ -108,10 +112,17 @@ def filter_depth(
     """
     assert np.issubdtype(depth_img.dtype, np.floating), "depth_img must be np.float32"
     assert depth_img.ndim == 2, "depth_img must be 2D"
-    filtered_depth_img = fill_in_multiscale(depth_img)[0]
-    # Recover pixels that weren't black before but were turned black by filtering
-    recovery_pixels = np.logical_and(depth_img != 0, filtered_depth_img == 0)
-    filtered_depth_img[recovery_pixels] = depth_img[recovery_pixels]
+    if recover_nonzero:
+        nonzero_mask = depth_img != 0
+    else:
+        nonzero_mask = None
+    if use_multiscale:
+        filtered_depth_img = fill_in_multiscale(depth_img, **kwargs)[0]
+    else:
+        filtered_depth_img = fill_in_fast(depth_img, **kwargs)
+    if nonzero_mask is not None:
+        # Recover pixels that weren't black before but were turned black by filtering
+        filtered_depth_img[nonzero_mask] = depth_img[nonzero_mask]
     if clip_far_thresh is not None:
         # Whiten pixels above whiten_far_thresh
         filtered_depth_img = np.clip(filtered_depth_img, 0, clip_far_thresh)
